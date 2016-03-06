@@ -190,7 +190,7 @@ def plot_radpro(hnum,hymass,hygmass,hysmass,hyx,dmomass,dmox,date,dm):
   chimin =1000
   for p in np.logspace(-1,np.log10(50)):
     (fit, cmatrix)= opt.curve_fit(psuedoiso,hyx,hytot/(4*3.14159/3*hyx**3),p0=(hytot[0]/(4*3.14159/3*hyx[0]**3),p))
-    chisq = sum((hytot/(4*3.14159/3*hyx**3)-psuedoiso(hyx,*fit))**2/(.3*hytot/(4*3.14159/3*hyx**3))**2)
+    chisq = sum((hytot/(4*3.14159/3*hyx**3)-psuedoiso(hyx,*fit))**2/(.1*hytot/(4*3.14159/3*hyx**3))**2)
     if chisq < chimin:
       chimin = chisq
       bestfit = fit
