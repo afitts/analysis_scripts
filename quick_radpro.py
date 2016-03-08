@@ -143,12 +143,12 @@ def radpro_df(pathname,sname,hist,dmo,rhalf,rmax):
     smassall, bin_edge = np.histogram( spos,bins=binz, weights =smass)
     print gpos
     tempall, bin_edge, binnum= stats.binned_statistic(gpos, temp, statistic='mean', bins=binz)
-    return massall, gmassall, smassall, x, rhalf,rmax, tempall
+    return massall, gmassall, smassall, x, rhalf,rmax, tempall, red
   else:
     count += 1
     return massall, x
 
-def plot_phase(hnum,hymass,hygmass,hysmass,hyx,temp,date):
+def plot_phase(hnum,hymass,hygmass,hysmass,hyx,temp,date, red):
   global count,grain
   hytot = hymass+hygmass+hysmass
   print temp, hygmass*1.99e33/(4*3.14159/3*(hyx*3.09e21)**3)/1.67e-24
@@ -174,7 +174,7 @@ def plot_phase(hnum,hymass,hygmass,hysmass,hyx,temp,date):
   #plt.ylim(1e-1,2e0)
   plt.legend(loc=3,prop={'size':10})
   #fname = 'm_enc_ratio_halo%s_%dbin_12_16_z0.pdf'%(hnum,grain)
-  fname = 'phase_halo%s_%dbin_%s_z0.pdf'%(hnum,grain,date)
+  fname = 'phase_halo%s_%dbin_%s_z%f.pdf'%(hnum,grain,date,red)
   plt.savefig(fname,transparent=True)
   plt.show()
   plt.close()
@@ -257,14 +257,17 @@ for w in np.arange(len(hnum)):
     hist = np.genfromtxt(pathname+'halo%smerger_hist.txt'%hnum[w])
     hymass,hygmass,hysmass,hyx,rhalf,rmax= radpro(pathname,sname,hist,dm[w],0,0)
     hymass,hygmass2,hysmass,hyx2,rhalf,rmax, temp = radpro_df(pathname,sname,hist,dm[w],0,0)
-    #plot_phase(hnum[w],hymass,hygmass,hysmass,hyx,temp,date)
+    plot_phase(hnum[w],hymass,hygmass,hysmass,hyx,temp,date)
+    i = 
+    hymass,hygmass2,hysmass,hyx2,rhalf,rmax, temp = radpro_df(pathname,sname,hist,dm[w],0,0)
+    plot_phase(hnum[w],hymass,hygmass,hysmass,hyx,temp,date)
 
   else:
     pathname = '/nobackup/afitts/Gadget-2.0.7/production/gizdm%s%s_raw_output/analysis/'%(hnum[w],res[w])
     sname = "/nobackup/afitts/Gadget-2.0.7/production/gizdm%s%s_raw_output/snapdir_%03d/snapshot_%03d"%(hnum[w],res[w],snap[w],snap[w])
     hist = np.genfromtxt(pathname+'halo%smerger_hist.txt'%hnum[w])
     dmomass,dmox = radpro(pathname,sname,hist,dm[w],rhalf,rmax)
-    plot_radpro(hnum[w],hymass,hygmass,hysmass,hyx,dmomass,dmox,date,dm[w])
+    #plot_radpro(hnum[w],hymass,hygmass,hysmass,hyx,dmomass,dmox,date,dm[w])
 
 
 ax1.set_ylabel("$v_{circ}$ (km/s)")

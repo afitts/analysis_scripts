@@ -12,6 +12,7 @@ import pygadgetreader as pg
 import scipy
 import scipy.integrate
 import fileinput
+import time
 
 def readahf(af):
        data=asciitable.read(af)
@@ -32,6 +33,11 @@ def get_starsnhalos(pathname,hnum,res,ver,snap_ind,xcen,ycen,zcen,rvir): #Simple
   global conv
   for i in np.arange(8):
     fname = '/nobackup/afitts/Gadget-2.0.7/production/mfm%s%s_giz%s_raw_output/snapdir_184/snapshot_184.%d.hdf5'%(hnum,res,ver,i)
+    bsize = pg.readheader(fname, 'boxsize')
+    if bsize > 25: #mfm007 is in kpc while everything else (even gizdm007) is in Mpc. This standardizes all that.
+      kfix = 1
+    else:
+      kfix = 1000
     a = h5py.File(fname,'r')
     if i == 0:
       pos = a['PartType4']['Coordinates']
@@ -39,9 +45,9 @@ def get_starsnhalos(pathname,hnum,res,ver,snap_ind,xcen,ycen,zcen,rvir): #Simple
     else:
       pos = np.vstack((pos,a['PartType4']['Coordinates']))
       masstot = np.concatenate((masstot,a['PartType4']['Masses']),0) 
-  xtot = pos[:,0]/h* conv
-  ytot = pos[:,1]/h* conv
-  ztot = pos[:,2]/h* conv
+  xtot = pos[:,0]/h* kfix
+  ytot = pos[:,1]/h* kfix
+  ztot = pos[:,2]/h* kfix
   for w in np.arange(16):
     temph = glob.glob(pathname+'analysis/ahf_snap%03d/ahf.snap_%03d.%04d.z*.*.AHF_halos'%(snap_ind,snap_ind,w))
     temph = str(temph).strip('[]').replace("'","")
@@ -49,21 +55,23 @@ def get_starsnhalos(pathname,hnum,res,ver,snap_ind,xcen,ycen,zcen,rvir): #Simple
     for k in np.arange(len(halo)):
       halodiff = np.sqrt((xcen-halo[k,2]/h)**2+(ycen-halo[k,3]/h)**2+(zcen-halo[k,4]/h)**2)
       try:
-       if halo[k,5] > 5 and halo[k,7]>10 and halodiff>20 or halodiff==0:# and halodiff<rvir or halodiff==0:
+       if halo[k,5] > 5 and halo[k,7]>10 and halodiff>20 and halodiff<100 or halodiff==0:# and halodiff<rvir or halodiff==0:
         ans = np.vstack((ans,(halo[k,1],halo[k,6])))
         x = np.append(x,halo[k,2]/h)
         y = np.append(y,halo[k,3]/h)
         z = np.append(z,halo[k,4]/h)
         rad = np.append(rad,halo[k,5]/h)
         bobob += halo[k,6]
+	print halo[k,0], halo[k,1],halo[k,6]
       except:
-       if halo[k,5] > 5 and halo[k,7]>10 and halodiff>20 or halodiff==0:#and halodiff<rvir or halodiff ==0:
+       if halo[k,5] > 5 and halo[k,7]>10 and halodiff>20 and halodiff<100 or halodiff==0:#and halodiff<rvir or halodiff ==0:
         ans = np.array([[halo[k,1],halo[k,6]]])
         x = np.array([halo[k,2]])/h
         y = np.array([halo[k,3]])/h
         z = np.array([halo[k,4]])/h
         rad = np.array([halo[k,5]])/h
         bobob = halo[k,6]
+	print halo[k,0], halo[k,1],halo[k,6]
 
   return xtot,ytot,ztot,x,y,z,rad 
 
@@ -549,21 +557,22 @@ def meanstellarage_vs_r(dwarf,xcen,ycen,zcen,thick, hnum):
 
 PI = 3.14159265359
 h = 0.71
-hnum = '2'
-res = '_13'
-ver = '11_13'
-snum = 10
-date = '12_18'
+hnum = ['007','2','948','796','897','1016']
+res = ['_11','_13','_13','_13','_13','_13']
+ver = ['11_13','11_13','11_13','11_13','11_13','11_13']
+snum = [3,10,10,3,7,3]
+date = time.strftime("%m_%d_%Y")
 conv = 1000
 snap = 184
 hage = 13.424
-pathname =  '/nobackup/afitts/Gadget-2.0.7/production/mfm%s%s_giz%s_raw_output/'%(hnum,res,ver)
-ahf_fname = '/nobackup/afitts/Gadget-2.0.7/production/mfm%s%s_giz%s_raw_output/analysis/ahf_snap184/ahf.snap_184.00%02d.z0.000.AHF_halos'%(hnum,res,ver,snum)
-ahfdata = readahf(ahf_fname)
-ahfdata = ahfdata[0]
-xcen,ycen,zcen,rvir = get_cen_rvir(ahfdata)
-starx,stary,starz,halox,haloy,haloz,halorad = get_starsnhalos(pathname,hnum,res,ver,snap,xcen,ycen,zcen,rvir)
-plot_star_and_halo(starx,stary,starz,halox,haloy,haloz,halorad,xcen,ycen,zcen,hnum,res)
+for j in np.arange(len(hnum)):
+  pathname =  '/nobackup/afitts/Gadget-2.0.7/production/mfm%s%s_giz%s_raw_output/'%(hnum[j],res[j],ver[j])
+  ahf_fname = '/nobackup/afitts/Gadget-2.0.7/production/mfm%s%s_giz%s_raw_output/analysis/ahf_snap184/ahf.snap_184.00%02d.z0.000.AHF_halos'%(hnum[j],res[j],ver[j],snum[j])
+  ahfdata = readahf(ahf_fname)
+  ahfdata = ahfdata[0]
+  xcen,ycen,zcen,rvir = get_cen_rvir(ahfdata)
+  starx,stary,starz,halox,haloy,haloz,halorad = get_starsnhalos(pathname,hnum[j],res[j],ver[j],snap,xcen,ycen,zcen,rvir)
+  plot_star_and_halo(starx,stary,starz,halox,haloy,haloz,halorad,xcen,ycen,zcen,hnum[j],res[j])
 
 switch = 0 #switch that determines if a main progenitor with stars has been found. When it is first found, all star particles will be denoted as from the main progenitor. From then on switch =1 and the complied list of particles will be carried through each snapshot.
 main_progen = np.zeros(1)

@@ -69,10 +69,11 @@ def add_vt(hnum,res,ver,extent,dmo):
       f = str(f)
       f.replace("'","")
       print f
-      if f != "'No object named props in the file'":
+      if f != "'No object named props in the file'" and f != "'No object named particles/dm in the file'":
         dm_mass[i] = sum(hdf['particles/dm']['mass'][hdf['particles/dm']['r']<ex])
         time[i] = hdf['props']['time']
         vmax[i] = hdf['props']['vmax']
+  print s_mass
   if dmo == 0:
     mvirvt.loglog(time,1.42*dm_mass, '%s'%clr[count],linewidth=2,label='%s tot'%(hnum))
     #ax.loglog(time/GYR,1.42*(prop[:,1]-prop[:,2]-prop[:,11]), '%s'%clr[count+2],linewidth=2,label='%s dm'%(hnum))
@@ -123,8 +124,8 @@ ax4.set_title("Halos Vmax v t")
 clr = ['r','b','k','g','y','m','c','r','b','k','g','y','m']
 
 extent = 2
-hnum = '1016'#['007','2','948','796','897','1016','007','2','948','796','897','1016']
-res = '_13'#['_11','_13','_13','_13','_13','_13','_11','_13','_13','_13','_13','_13']
+hnum = '007'#['007','2','948','796','897','1016','007','2','948','796','897','1016']
+res = '_11'#['_11','_13','_13','_13','_13','_13','_11','_13','_13','_13','_13','_13']
 ver = '11_13'#['11_13','11_13','11_13','11_13','11_13','11_13','11_13','11_13','11_13','11_13','11_13','11_13']
 dm = 0#[0,0,0,0,0,0,1,1,1,1,1,]
 count = 0
