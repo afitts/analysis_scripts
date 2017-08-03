@@ -1,6 +1,6 @@
 import numpy as np
-import matplotlib 
-matplotlib.use('Agg')
+#import matplotlib 
+#matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 import asciitable
@@ -66,7 +66,6 @@ def get_starsnhalos(pathname,hnum,res,ver,snum): #Simple function to get 2D scat
   ycen = np.float(hdf['props']['haloy'])
   zcen = np.float(hdf['props']['haloz'])
   rvir = np.float(hdf['props']['rvir'])*1000
-  hdf.close()
   print rvir
   for w in np.arange(16):
     temph = glob.glob(pathname+'analysis/ahf_snap%03d/ahf.snap_%03d.%04d.z*.*.AHF_halos'%(snum,snum,w))
@@ -153,10 +152,13 @@ def plot_star_and_halo(x,y,z,halox,haloy,haloz,halorad,xcen,ycen,zcen,hnum,res,s
   return True
 
 def gather_progen(pathname,snap,hnum): #Gather progenitors of halo from mtree file. Requires Mergertree and my_merger_hist.py to have been already run (for merger_hist.txt)
-
+  if hnum == '10q' or hnum == '10v':
+	snumtot = 600
+  else:
+	snumtot = 184
   mainid = np.genfromtxt(pathname+'analysis/halo%smerger_hist.txt'%hnum)
   f = np.genfromtxt(pathname+'analysis/merger/halo%s_snap%03d_snap%03d_mtree'%(hnum,snap,snap-1))
-  mainid = mainid[184-snap,1]
+  mainid = mainid[snumtot-snap,1]
   try:
     maindex = np.where(f[:,0] == mainid) #Find our halo
     maindex = int(maindex[0])
@@ -184,35 +186,39 @@ def _a_dot(a, h0, om_m, om_l):
 def _a_dot_recip(*args):
     return 1. / _a_dot(*args)
 
-def stellar_age(pathname,snum,main_part,hdf,a): #Add stellar creation time
+def stellar_age(pathname,snum,main_part): #Add stellar creation time
   h0 = 71
   om_l = 0.734
   om_m = 0.266
   conv = 3.085677581e+19
-  age = hdf['particles/star']['sft'].as_matrix()#pg.readsnap(pathname+'snapdir_%03d/snapshot_%03d'%(snum,snum),'age','star')
-  #test = np.float(hdf['props']['time'])#pg.readheader(pathname+'snapdir_%03d/snapshot_%03d'%(snum,snum),'time')
-  test = a
-  test = test[snum]
-  print age[age>test]
+  print pathname+'snapdir_%03d/snapshot_%03d'%(snum,snum)
+  age = pg.readsnap(pathname+'snapdir_%03d/snapshot_%03d'%(snum,snum),'age','star')
+  test = pg.readheader(pathname+'snapdir_%03d/snapshot_%03d'%(snum,snum),'time')
   for i in np.arange(len(age)):
     age[i] = scipy.integrate.quad(_a_dot_recip, 0,age[i], (h0, om_m, om_l))[0]*conv
   test = scipy.integrate.quad(_a_dot_recip, 0,test, (h0, om_m, om_l))[0]*conv
   #age = np.array([age]) #So that we can easily take the transpose of age to concatenate with mass_progen
-  pid = hdf['particles/star'].index.values#pg.readsnap(pathname+'snapdir_%03d/snapshot_%03d'%(snum,snum),'pid','star')
-  bob = age[np.in1d(pid, main_part[:,0].astype('int'))]
-  main_part[np.argsort(main_part[:,0].astype('int')),11] = bob[np.argsort(pid[np.in1d(pid, main_part[:,0].astype('int'))])]/3600/24/365/1e9
+  pid = pg.readsnap(pathname+'snapdir_%03d/snapshot_%03d'%(snum,snum),'pid','star')
+  age_for_main = age[np.in1d(pid, main_part[:,0].astype('int'))]
+  pid_for_main = pid[np.in1d(pid, main_part[:,0].astype('int'))]
+  age_for_main = age_for_main[np.unique(pid_for_main[:].astype('int'),return_index=True)[1]]
+  pid_for_main = pid_for_main[np.unique(pid_for_main[:].astype('int'),return_index=True)[1]]
+  main_part[np.argsort(main_part[:,0].astype('int')),11] = age_for_main[np.argsort(pid_for_main[:].astype('int'))]/3600/24/365/1e9
   #print main_part[np.argsort(main_part[:,0].astype('int')),0],main_part[np.argsort(main_part[:,0].astype('int')),11]
   #main_part[np.argsort(main_part[np.in1d(main_part[:,0].astype('int'),bob[:,0].astype('int')),0])= bob[np.argsort(bob[np.in1d(bob[:,0].astype('int'),bob[:,0].astype('int')),0])
 
   return main_part
 
-def get_projden(pathname,snum,main_part,hdf):
+def get_projden(pathname,snum,main_part):
 
   global h
-  mass = hdf['particles/star']['mass'].as_matrix()#pg.readsnap(pathname+'snapdir_%03d/snapshot_%03d'%(snum,snum),'mass','star')/h
-  pid = hdf['particles/star'].index.values#pg.readsnap(pathname+'snapdir_%03d/snapshot_%03d'%(snum,snum),'pid','star')
-  bob = mass[np.in1d(pid, main_part[:,0].astype('int'))]
-  main_part[np.argsort(main_part[np.in1d(main_part[:,0].astype('int'),pid),0]),12] = bob[np.argsort(pid[np.in1d(pid, main_part[:,0].astype('int'))])]*1e10 
+  mass = pg.readsnap(pathname+'snapdir_%03d/snapshot_%03d'%(snum,snum),'mass','star')/h
+  pid = pg.readsnap(pathname+'snapdir_%03d/snapshot_%03d'%(snum,snum),'pid','star')
+  mass_for_main = mass[np.in1d(pid, main_part[:,0].astype('int'))]
+  pid_for_main = pid[np.in1d(pid, main_part[:,0].astype('int'))]
+  mass_for_main = mass_for_main[np.unique(pid_for_main[:].astype('int'),return_index=True)[1]]
+  pid_for_main = pid_for_main[np.unique(pid_for_main[:].astype('int'),return_index=True)[1]]
+  main_part[np.argsort(main_part[np.in1d(main_part[:,0].astype('int'),pid),0]),12] = mass_for_main[np.argsort(pid_for_main[:].astype('int'))]*1e10 
 
   return main_part
 
@@ -231,7 +237,7 @@ def formation_radius(pathname,snum,i,mainprogenid,halostars): #Add formation rad
 
   return halostars
 
-def gather_particles(main_progen,pathname,snum,hnum,fnum,res,ver): #Use progenitors array to gather all their star particles in AHF particle files into the main particle array (now we have each particles' ID, position, velocity and whether they were part of the main progenitor or from a merger)
+def gather_particles(main_progen,pathname,snum,hnum,fnum): #Use progenitors array to gather all their star particles in AHF particle files into the main particle array (now we have each particles' ID, position, velocity and whether they were part of the main progenitor or from a merger)
 
   global switch
   h0 = 71
@@ -256,7 +262,8 @@ def gather_particles(main_progen,pathname,snum,hnum,fnum,res,ver): #Use progenit
       if type(e)==types.StringType and len(e.split())==2 and (int(e.split()[1]) in progen)==True: # Make sure the halo id is in the progenitor array
         haloid = int(e.split()[1])# e.split()[0] is the number of particles, [1] is the halo ID
 	numpart = int(e.split()[0])
-	halostars =np.array(prev_particles.ix[j+1:j+numpart][prev_particles.ix[j+1:j+numpart,'type']==4])
+	halostars =np.array(prev_particles.ix[j+1:j+numpart][prev_particles.ix[j+1:j+numpart,'type']==4]) #All the stars in this halo.
+        halostars = halostars[np.unique(halostars[:,0].astype('int'),return_index=True)[1]] #Get rid of duplicates (In AHF, host halos calim ownership of sub halos' particles.
 	if len(halostars>0):
 	  try:
 	    if haloid == mainprogenid: #Main progenitor?
@@ -276,14 +283,12 @@ def gather_particles(main_progen,pathname,snum,hnum,fnum,res,ver): #Use progenit
 		halostars[np.argsort(halostars[hstar_und,0].astype('int')),12] = main_progen[np.argsort(main_progen[main_need,0].astype('int')),12]
 	    else:# Then Merger.
 	      halostars[:,8] = 0 #Now the last column becomes a zero to denote that the particle came from a merger MAY NEED TO EDIT THIS. CLEARLY THE COLUMNS ARE BEING PUT IN OUT OF ORDER.
-	      hdf = pd.HDFStore(pathname+'analysis/dataframes/halo%s%s_giz%s_snap%03d.h5'%(hnum,res,ver,snum))#pg.readheader(pathname+'snapdir_%03d/snapshot_%03d'%(snum,snum),'time')
-	      atime = np.float(hdf['props']['time'])
-	      hdf.close()
-	      #atime = scipy.integrate.quad(_a_dot_recip, 0,atime, (h0, om_m, om_l))[0]*conv/3600/24/365/1e9
+	      atime = pg.readheader(pathname+'snapdir_%03d/snapshot_%03d'%(snum,snum),'time')#pd.HDFStore(pathname+'analysis/dataframes/halo%s%s_giz%s_snap%03d.h5'%(pathname,hnum,res,ver,snum))#
+	      atime = scipy.integrate.quad(_a_dot_recip, 0,atime, (h0, om_m, om_l))[0]*conv/3600/24/365/1e9
 	      halostars[:,10] =  atime# SET EQUAL TO ACCRETION TIME. ALTER C TIME TO 11 AND MASS FOR 12!!!!!
 	    progen_part = np.vstack((progen_part, halostars)) #Add the id of particle, the type (only allow stars at this point), position, velocity and main or merger flag. 
 	  except Exception,f:
-            print f
+            print f,'hi'
 	    if haloid == mainprogenid: 
 	      if switch == 0:
 	        halostars[:,8] = 1
@@ -317,6 +322,7 @@ def gather_particles(main_progen,pathname,snum,hnum,fnum,res,ver): #Use progenit
          haloid = int(e.split()[1])# e.split()[0] is the number of particles, [1] is the halo ID
 	 numpart = int(e.split()[0])
          main_part = np.array(current_particles.ix[j+1:j+numpart][current_particles.ix[j+1:j+numpart,'type']==4])
+	 main_part = main_part[np.unique(main_part[:,0].astype('int'),return_index=True)[1]] #Get rid of duplicates (In AHF, host halos calim ownership of sub halos' particles.
 	 temp1 = glob.glob(pathname+'analysis/ahf_snap%03d/ahf.snap_%03d.%04d.z*.*.AHF_halos'%(snum,snum,i))
 	 temp1 = str(temp1).strip('[]').replace("'","")
 	 ahfdata = readahf(temp1)
@@ -337,20 +343,18 @@ def gather_particles(main_progen,pathname,snum,hnum,fnum,res,ver): #Use progenit
              main_und[np.argsort(main_und[:,0].astype('int')),10]=progen2main[np.argsort(progen2main[:,0].astype('int')),10]
 	     main_part[main_part[:,8]==2,10]=main_und[:,10]
              main_und[np.argsort(main_und[:,0].astype('int')),11]=progen2main[np.argsort(progen2main[:,0].astype('int')),11]
-	     main_part[main_part[:,8]==2,10]=main_und[:,10]
+	     main_part[main_part[:,8]==2,11]=main_und[:,11]
              main_und[np.argsort(main_und[:,0].astype('int')),12]=progen2main[np.argsort(progen2main[:,0].astype('int')),12]
-	     main_part[main_part[:,8]==2,10]=main_und[:,10]
+	     main_part[main_part[:,8]==2,12]=main_und[:,12]
            main_und[np.argsort(main_und[:,0].astype('int')),8]=progen2main[np.argsort(progen2main[:,0].astype('int')),8] #Sort particles by id (in both main and progen). Set main_part flags (main or merger) by/
 	   main_part[main_part[:,8]==2,8]=main_und[:,8]										 # gathering them from progen (thanks to our previous slices, the sorted arrays should line up now.)
 
 	 try:
-	   hdf = pd.HDFStore(pathname+'analysis/dataframes/halo%s%s_giz%s_snap%03d.h5'%(hnum,res,ver,snum))
-	   a = np.genfromtxt('/nobackup/afitts/analysis_scripts/output_times.txt')
-	   main_part = stellar_age(pathname,snum,main_part,hdf,a)
-	   main_part = get_projden(pathname,snum,main_part,hdf)
-	   hdf.close()
+	   #print main_part
+	   main_part = stellar_age(pathname,snum,main_part)
+	   main_part = get_projden(pathname,snum,main_part)
 	 except Exception,f:
-            print f
+            print f,'hello'
 	 stars_in_halo = main_part
 	 print snum, len(stars_in_halo[stars_in_halo[:,8]==0]),len(stars_in_halo[stars_in_halo[:,8]==1])
   try:
@@ -367,7 +371,7 @@ def gather_particles(main_progen,pathname,snum,hnum,fnum,res,ver): #Use progenit
 
 def plot_starmerge(dwarf,hnum,res,halox,haloy,halorad,xcen,ycen):
   global h, date
-  agecut = 3.09 #2.12 (z=3) 2.58 (z=2.5) 3.09(z=2.1) 3.24 (z=2) 5.77 (z=1) 
+  agecut = 5.77#3.09 #2.12 (z=3) 2.58 (z=2.5) 3.09(z=2.1) 3.24 (z=2) 5.77 (z=1) 
   figprops = dict(figsize=(8., 8. / 1.618), dpi=128)                                          # Figure properties
   adjustprops = dict(left=0.1, bottom=0.1, right=0.97, top=0.93, wspace=0.001, hspace=0.001)       # Subplot properties
 
@@ -382,30 +386,41 @@ def plot_starmerge(dwarf,hnum,res,halox,haloy,halorad,xcen,ycen):
   fx = fig.add_subplot(2, 3, 6, sharex=ax, sharey=ax)
 
   merger = dwarf[:,8]==0
-  mergery = (dwarf[:,8]==0) & (dwarf[:,11]>agecut)
-  mergero = (dwarf[:,8]==0) & (dwarf[:,11]<agecut)
+  #mergery = (dwarf[:,8]==0) & (dwarf[:,11]>agecut)
+  #mergero = (dwarf[:,8]==0) & (dwarf[:,11]<agecut)
+  mergery = (dwarf[:,8]==0) & (dwarf[:,10]>agecut)
+  mergero = (dwarf[:,8]==0) & (dwarf[:,10]<agecut)
   main = dwarf[:,8]==1
-  mainy = (dwarf[:,8]==1) & (dwarf[:,11]>agecut)
-  maino = (dwarf[:,8]==1) & (dwarf[:,11]<agecut)
+  #mainy = (dwarf[:,8]==1) & (dwarf[:,11]>agecut)
+  #maino = (dwarf[:,8]==1) & (dwarf[:,11]<agecut)
+  mainy = (dwarf[:,8]==1) & (dwarf[:,10]>agecut)
+  maino = (dwarf[:,8]==1) & (dwarf[:,10]<agecut)
   ax.scatter(dwarf[main,2]-xcen,dwarf[main,3]-ycen,marker = 'o',s = 10,c='b',edgecolors='none',label = 'merger')
+  #counts,xedge,yedge,image=ax.hist2d(dwarf[main,2]-xcen,dwarf[main,3]-ycen,bins=1e2,norm=LogNorm())
   ax.text(-17,15, 'All in situ', size=10)
   ax.text(-17,-17, '$M_\mathrm{\star,tot}$=%.3g'%sum(dwarf[main,12]),size=8)
   bx.scatter(dwarf[maino,2]-xcen,dwarf[maino,3]-ycen,marker = 'o',s = 10,c='b',edgecolors='none',label = 'merger')
+  #bx.hist2d(dwarf[maino,2]-xcen,dwarf[maino,3]-ycen,bins=[xedge,yedge],norm=LogNorm())
   bx.text(-17,15, 'in situ, old', size=10)
   bx.text(-17,-17, '$M_\mathrm{\star,tot}$=%.3g'%sum(dwarf[maino,12]),size=8)
   cx.scatter(dwarf[mainy,2]-xcen,dwarf[mainy,3]-ycen,marker = 'o',s = 10,c='b',edgecolors='none',label = 'merger')
+  #cx.hist2d(dwarf[mainy,2]-xcen,dwarf[mainy,3]-ycen,bins=[xedge,yedge],norm=LogNorm())
   cx.text(-17,15, 'in situ, young', size=10)
   cx.text(-17,-17, '$M_\mathrm{\star,tot}$=%.3g'%sum(dwarf[mainy,12]),size=8)
   dx.scatter(dwarf[merger,2]-xcen,dwarf[merger,3]-ycen,marker = 'o',s = 10,c='b',edgecolors='none',label = 'merger')
+  #dx.hist2d(dwarf[merger,2]-xcen,dwarf[merger,3]-ycen,bins=[xedge,yedge],norm=LogNorm())
   dx.text(-17,15, 'All merger', size=10)
   dx.text(-17,-17, '$M_\mathrm{\star,tot}$=%.3g'%sum(dwarf[merger,12]),size=8)
   ex.scatter(dwarf[mergero,2]-xcen,dwarf[mergero,3]-ycen,marker = 'o',s = 10,c='b',edgecolors='none',label = 'merger')
+  #ex.hist2d(dwarf[mergero,2]-xcen,dwarf[mergero,3]-ycen,bins=[xedge,yedge],norm=LogNorm())
   #ex.text(-17,17, 'merger, early accre.', size=10)
-  ex.text(-17,15, 'merger, old (>%.2fGyr)'%agecut, size=10)
+  #ex.text(-17,15, 'merger, old (>%.2fGyr)'%agecut, size=10)
+  ex.text(-17,15, 'merger, old accretion(z>1)', size=10)
   ex.text(-17,-17, '$M_\mathrm{\star,tot}$=%.3g'%sum(dwarf[mergero,12]),size=8)
   fx.scatter(dwarf[mergery,2]-xcen,dwarf[mergery,3]-ycen,marker = 'o',s = 10,c='b',edgecolors='none',label = 'merger')
+  #fx.hist2d(dwarf[mergery,2]-xcen,dwarf[mergery,3]-ycen,bins=[xedge,yedge],norm=LogNorm())
   #fx.text(-17,17, 'merger, late accre.', size=10)
-  fx.text(-17,15, 'merger, young(<%.2fGyr)'%agecut, size=10)
+  fx.text(-17,15, 'merger, recent accretion(z>1)', size=10)
   fx.text(-17,-17, '$M_\mathrm{\star,tot}$=%.3g'%sum(dwarf[mergery,12]),size=8)
 
   pylab.setp(ax.get_xticklabels(), visible=False)
@@ -424,7 +439,7 @@ def plot_starmerge(dwarf,hnum,res,halox,haloy,halorad,xcen,ycen):
  # bx.set_title('Halo %s 9_17 XY Star Particle Positions at z=0'%hnum)
   ax.set_xlim(-20,20)
   ax.set_ylim(-20,20)
-  fig.savefig('halo%snew%s_xy_starmerger_cutatz=2p1_%s.pdf'%(hnum,res,date),transparent=True)
+  fig.savefig('halo%snew%s_xy_starmerger_accretion_%s.pdf'%(hnum,res,date),transparent=True)
   plt.show()
 
    
@@ -820,11 +835,11 @@ def peakmass(hnum,res,ver,dmo,haloid,snapf):
 
 PI = 3.14159265359
 h = 0.71
-hnum =['11707','32503','12596','007','848','796','20192','20910','897','948','1016','32257','10q','10v','1084']
-res = ['_13','_13','_13','_11','_13','_13','_13','_13','_13','_13','_13','_13','_11','_11','_13']
+hnum =['10q','10v','32257']#'11707','32503','12596','007','848','796','20192','20910','897','948','1016','32257','10q','10v']#,'1084']
+res = ['_11','_11','_13','_11','_13','_13','_13','_13','_13','_13','_13','_13','_11','_11','_13']
 ver = ['5_12_16','5_12_16','5_12_16','5_12_16','5_12_16','5_12_16','5_12_16','5_12_16','5_12_16','5_12_16','5_12_16','5_12_16','5_12_16','5_12_16','5_12_16','5_12_16']
 dmo = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
-snum = [185,185,185,185,185,185,185,185,185,185,185,185,601,601,185]
+snum = [601,601,185,185,185,185,185,185,185,185,185,185,601,601,185]
 date = time.strftime("%m_%d_%Y")
 conv = 1000
 snap = 184
@@ -845,15 +860,18 @@ def parallel_main(hnum,res,ver,snum):
 	main_progen = np.zeros(1)
 	pathname =  '/nobackup/afitts/Gadget-2.0.7/production/mfm%s%s_giz%s_raw_output/'%(hnum,res,ver)
 	mainid_file = np.genfromtxt(pathname+'analysis/halo%smerger_hist.txt'%hnum)
-	time_file = np.genfromtxt('/nobackup/afitts/analysis_scripts/Halo848_13_mstar.out')
+	if hnum == '10v' or hnum == '10q':
+		time_file = np.genfromtxt('/nobackup/afitts/analysis_scripts/Halo10q_11_mstar.out')
+	else:
+		time_file = np.genfromtxt('/nobackup/afitts/analysis_scripts/Halo848_13_mstar.out')
 	for i,e in enumerate(np.arange(snum)):
 		print e
 		if e != 0:
-			mainid = mainid_file[184-e+1,1]
+			mainid = mainid_file[snum-e,1]
 		else:
-			mainid = mainid_file[184-e,1]
+			mainid = mainid_file[snum-1-e,1]
 		if mainid != 0:
-			main_progen = gather_particles(main_progen,pathname,e,hnum,fnum,res,ver)
+			main_progen = gather_particles(main_progen,pathname,e,hnum,fnum)
 			current_time = time_file[i,0]
 			print current_time
 			#hdf.close()
@@ -869,34 +887,48 @@ def plotter(hnum):
 		mhist_plot.add_line(mergers)
 		mhist_plot.save(hnum[i],date)
 	return True
+def starmerge_plots(hnum,res,ver,snum):
+	for j in np.arange(len(hnum)):
+		main_progen = np.genfromtxt('starmerger_out/Halo%s_starmerger_test.out'%hnum[j])
+		main_progen[:,2] = main_progen[:,2]
+		main_progen[:,3] = main_progen[:,3]
+		main_progen[:,4] = main_progen[:,4]
+		main_progen[:,0] = main_progen[:,0].astype('int')
+		pathname =  '/nobackup/afitts/Gadget-2.0.7/production/mfm%s%s_giz%s_raw_output/'%(hnum[j],res[j],ver[j])
+		hdf = pd.HDFStore('%sanalysis/dataframes/halo%s%s_giz%s_snap%03d.h5'%(pathname,hnum[j],res[j],ver[j],snum[j]-1))
+		xcen = np.float(hdf['props']['halox'])*1e3
+		ycen = np.float(hdf['props']['haloy'])*1e3
+		zcen = np.float(hdf['props']['haloz'])*1e3
+		halorad = np.float(hdf['props']['rvir'])*1000
+		plot_starmerge(main_progen,hnum[j],res[j],xcen,ycen,halorad,xcen,ycen)
 plt.ion()
 j = int(sys.argv[1])
-main_progen = parallel_main(hnum[j],res[j],ver[j],snum[j])
+#!#main_progen = parallel_main(hnum[j],res[j],ver[j],snum[j])
 #plotter(hnum)
 #mhist_plot.add_line(mergers)
 #mhist_plot.save(date)
-#main_progen[:,0] = main_progen[:,0].astype('int')
-#main_progen[:,2] = main_progen[:,2]
-#main_progen[:,3] = main_progen[:,3]
-#main_progen[:,4] = main_progen[:,4]
-#np.savetxt('Halo%d_starmerger_test_%s.out'%(hnum,date),main_progen,header='(0)Id	(1)ParticleType	(2)X	(3)Y	(4)Z	(5)Vx	(6)Vy	(7)Vz	(8)Formed in main progen?(1=yes)	(9)r_form(kpc)	(10)Accretion time(Gyr)	(11)Creation time(Gyr)	(12)Mass (M_sun)')
+#!#main_progen[:,0] = main_progen[:,0].astype('int')
+##main_progen[:,2] = main_progen[:,2]
+##main_progen[:,3] = main_progen[:,3]
+##main_progen[:,4] = main_progen[:,4]
+#!#np.savetxt('Halo%s_starmerger_low_%s.out'%(hnum[j],date),main_progen,header='(0)Id	(1)ParticleType	(2)X	(3)Y	(4)Z	(5)Vx	(6)Vy	(7)Vz	(8)Formed in main progen?(1=yes)	(9)r_form(kpc)	(10)Accretion time(Gyr)	(11)Creation time(Gyr)	(12)Mass (M_sun)')
 
 #headers = 'id type x y z vx vy vz main r_form(kpc) atime(Gyr) ctime(Gyr) mass (M_sun)'.split()
 #for line in fileinput.input(['Halo%d_starmerger_hist_11_3.out'%hnum], inplace=True):
 #    if fileinput.isfirstline():
 #        print '\t'.join(headers)
-#main_progen = np.genfromtxt('Halo848_starmerger_test_09_27_2016.out')
-main_progen[:,2] = main_progen[:,2]/1e3
-main_progen[:,3] = main_progen[:,3]/1e3
-main_progen[:,4] = main_progen[:,4]/1e3
-pathname =  '/nobackup/afitts/Gadget-2.0.7/production/mfm%s%s_giz%s_raw_output/'%(hnum[j],res[j],ver[j])
-hdf = pd.HDFStore('%sanalysis/dataframes/halo%s%s_giz%s_snap%03d.h5'%(pathname,hnum[j],res[j],ver[j],184))
-xcen = np.float(hdf['props']['halox'])*1e3
-ycen = np.float(hdf['props']['haloy'])*1e3
-zcen = np.float(hdf['props']['haloz'])*1e3
-halorad = np.float(hdf['props']['rvir'])*1000
-hdf.close()
-plot_starmerge(main_progen,hnum[0],res[0],xcen,ycen,halorad,xcen,ycen)
+#main_progen = np.genfromtxt('Halo848_starmerger_test_11_18_2016.out')
+#main_progen[:,2] = main_progen[:,2]
+#main_progen[:,3] = main_progen[:,3]
+#main_progen[:,4] = main_progen[:,4]
+#pathname =  '/nobackup/afitts/Gadget-2.0.7/production/mfm%s%s_giz%s_raw_output/'%(hnum[j],res[j],ver[j])
+#hdf = pd.HDFStore('%sanalysis/dataframes/halo%s%s_giz%s_snap%03d.h5'%(pathname,hnum[j],res[j],ver[j],184))
+#xcen = np.float(hdf['props']['halox'])*1e3
+#ycen = np.float(hdf['props']['haloy'])*1e3
+#zcen = np.float(hdf['props']['haloz'])*1e3
+#halorad = np.float(hdf['props']['rvir'])*1000
+#plot_starmerge(main_progen,hnum[0],res[0],xcen,ycen,halorad,xcen,ycen)
+starmerge_plots(hnum,res,ver,snum)
 #plot_projden(main_progen,xcen,ycen,zcen,rvir, hnum)
 #kristy_plots(main_progen,hnum,halox,haloy,halorad,xcen,ycen,zcen,rvir)
 #meanstellarage_vs_r(main_progen,xcen,ycen,zcen,rvir, hnum)
